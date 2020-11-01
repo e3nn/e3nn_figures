@@ -12,25 +12,27 @@ from e3nn import o3, rs
 from e3nn.tensor import IrrepTensor, SphericalTensor
 
 
-def surf(x, center, cmap):
+def get_cmap(x):
+    if x == 'bwr':
+        return [[0, 'rgb(0,50,255)'], [0.5, 'rgb(200,200,200)'], [1, 'rgb(255,50,0)']]
+    if x == 'plasma':
+        return [[0, '#9F1A9B'], [0.25, '#0D1286'], [0.5, '#000000'], [0.75, '#F58C45'], [1, '#F0F524']]
+
+
+def surf(args, x, center):
     x = IrrepTensor(x, len(x) // 2)
     x = SphericalTensor.from_irrep_tensor(x)
 
     return go.Surface(
-        **x.plotly_surface(center=center, normalization='norm'),
+        **x.plotly_surface(args.res, center=center, normalization='norm'),
         showscale=False,
         cmin=-0.33,
         cmax=0.33,
-        colorscale=cmap,
+        colorscale=get_cmap(args.cmap),
     )
 
 
 def main(args):
-    if args.cmap == 'bwr':
-        cmap = [[0, 'rgb(0,50,255)'], [0.5, 'rgb(200,200,200)'], [1, 'rgb(255,50,0)']]
-    if args.cmap == 'plasma':
-        cmap = [[0, '#9F1A9B'], [0.25, '#0D1286'], [0.5, '#000000'], [0.75, '#F58C45'], [1, '#F0F524']]
-
     if os.path.exists('gif'):
         shutil.rmtree('gif')
     os.makedirs('gif')
@@ -44,29 +46,31 @@ def main(args):
         x1 = torch.tensor([0.1, 0.05, 0.2])
         x1 = 0.27 * x1 / x1.norm()
 
-        x2 = c1 * torch.tensor([0.0, 0.0, 0.25, 0.0, 0.0])
-        x2 += s1 * torch.tensor([0.25, 0.0, 0.0, 0., 0.0])
-        x2 += s2 * torch.tensor([0.0, 0.25, 0.0, 0., 0.0])
-        x2 += c2 * torch.tensor([0.0, 0., 0.0, 0., 0.25])
-        x2 = 0.27 * x2 / x2.norm()
+        if args.animation == "change":
+            x2 = c1 * torch.tensor([0.0, 0.0, 0.25, 0.0, 0.0])
+            x2 += s1 * torch.tensor([0.25, 0.0, 0.0, 0., 0.0])
+            x2 += s2 * torch.tensor([0.0, 0.25, 0.0, 0., 0.0])
+            x2 += c2 * torch.tensor([0.0, 0., 0.0, 0., 0.25])
+            x2 = 0.27 * x2 / x2.norm()
 
-        x2 = torch.tensor([0.0, 0.0, 0.25, 0.0, 0.0])
-        a = 2 * math.pi * t
-        b = 2 * math.pi * t
-        c = 2 * math.pi * t
-        x1 = rs.rep(1, a, b, c) @ x1
-        x2 = rs.rep(2, a, b, c) @ x2
+        if args.animation == "rotation":
+            x2 = torch.tensor([0.0, 0.0, 0.25, 0.0, 0.0])
+            a = 2 * math.pi * t
+            b = 2 * math.pi * t
+            c = 2 * math.pi * t
+            x1 = rs.rep(1, a, b, c) @ x1
+            x2 = rs.rep(2, a, b, c) @ x2
 
         tp = rs.TensorProduct(1, 2, o3.selection_rule, normalization='norm')
         x3 = 4. * tp(x1, x2)
         out1, out2, out3 = rs.cut(x3, [1], [2], [3])
 
         data = [
-            surf(x1, torch.tensor([-2, 0, 0.0]), cmap),
-            surf(x2, torch.tensor([-1, 0, 0.0]), cmap),
-            surf(out1, torch.tensor([0, 0, 0.0]), cmap),
-            surf(out2, torch.tensor([1, 0, 0.0]), cmap),
-            surf(out3, torch.tensor([2, 0, 0.0]), cmap),
+            surf(args, x1, torch.tensor([-2, 0, 0.0])),
+            surf(args, x2, torch.tensor([-1, 0, 0.0])),
+            surf(args, out1, torch.tensor([0, 0, 0.0])),
+            surf(args, out2, torch.tensor([1, 0, 0.0])),
+            surf(args, out3, torch.tensor([2, 0, 0.0])),
         ]
 
         axis = dict(
@@ -156,11 +160,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--height", type=int, default=200)
+    parser.add_argument("--res", type=int, default=100)
     parser.add_argument("--steps", type=int, default=30)
     parser.add_argument("--color_bg", type=str, default="rgba(0,0,0,0)")
     parser.add_argument("--color_text", type=str, default="rgb(255,255,255)")
     parser.add_argument("--cmap", type=str, default="bwr")
+    parser.add_argument("--animation", type=str, default="rotation")
 
-    args = parser.parse_args()
-
-    main(args)
+    main(parser.parse_args())
