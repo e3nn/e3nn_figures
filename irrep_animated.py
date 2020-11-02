@@ -31,11 +31,12 @@ def surf(args, x, center):
 
 
 def main(args):
-    if os.path.exists('gif'):
-        shutil.rmtree('gif')
-    os.makedirs('gif')
+    if os.path.exists(args.out):
+        shutil.rmtree(args.out)
+    os.makedirs(args.out)
 
     xs = torch.randn(args.pitchs, 2 * args.L + 1)
+    print(xs)
 
     for i, t in enumerate(tqdm(torch.linspace(0, 1, args.steps + 1)[:-1])):
         t = t.item()
@@ -73,7 +74,7 @@ def main(args):
                     **axis,
                 ),
                 aspectmode='manual',
-                aspectratio=dict(x=1.8, y=1.8, z=1.8),
+                aspectratio=dict(x=4, y=4, z=4),
                 camera=dict(
                     up=dict(x=0, y=0, z=1),
                     center=dict(x=0, y=0, z=0),
@@ -87,9 +88,9 @@ def main(args):
         )
 
         fig = go.Figure(data=data, layout=layout)
-        fig.write_image('gif/{:03d}.png'.format(i))
+        fig.write_image('{}/{:03d}.png'.format(args.out, i))
 
-    subprocess.check_output(["convert", "-delay", "3", "-loop", "0", "-dispose", "2", "gif/*.png", "output.gif"])
+    subprocess.check_output(["convert", "-delay", "3", "-loop", "0", "-dispose", "2", "{}/*.png".format(args.out), "{}.gif".format(args.out)])
 
 
 if __name__ == '__main__':
@@ -103,5 +104,6 @@ if __name__ == '__main__':
     parser.add_argument("--color_text", type=str, default="rgb(255,255,255)")
     parser.add_argument("--cmap", type=str, default="plasma")
     parser.add_argument("--L", type=int, default=2)
+    parser.add_argument("--out", type=str, default="gif")
 
     main(parser.parse_args())
